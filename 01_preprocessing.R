@@ -7,6 +7,7 @@ vankrunkelsven_2022 <- read_delim(
   delim = ";", col_types = vankrunkelsven_2022_spec
 )
 
+# write file to disk
 write_rds(vankrunkelsven_2022, "processed_data/vankrunkelsven_2022.rds")
 
 # brysbaert 2014 ----
