@@ -11,6 +11,7 @@ concreteness_summary <- summary(brysbaert_2014$concreteness_brysbaert)
 concreteness_summary
 
 
+
 # Speed ----
 ## Auditory
 
