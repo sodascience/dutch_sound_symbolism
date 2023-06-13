@@ -50,3 +50,39 @@ model_subword.save_model(os.path.join(
                         out_path, '{}_d{}_w{}_m{}_M{}.bin'.format(
                         os.path.splitext(corpus)[0].split('/')[1], dim_best, ws_best, min_n_best, max_n_best)))
 del model_subword
+
+
+model_big = fasttext.train_unsupervised(input = corpus,
+                                            model = "skipgram",
+                                            dim = dim_best,
+                                            ws = ws_best,
+                                            minn = 2,
+                                            maxn = 5,
+                                            lr = 0.01,
+                                            epoch = 10,
+                                            minCount = 3,
+                                            thread = 8,
+                                            bucket=4000000)
+
+model_big.save_model(os.path.join(
+                        out_path, '{}_d{}_w{}_m{}_M{}.bin'.format(
+                        os.path.splitext(corpus)[0].split('/')[1], dim_best, ws_best, 2, 5)))
+del model_big
+
+
+model_bigram = fasttext.train_unsupervised(input = corpus,
+                                            model = "skipgram",
+                                            dim = dim_best,
+                                            ws = ws_best,
+                                            minn = 2,
+                                            maxn = 2,
+                                            lr = 0.01,
+                                            epoch = 10,
+                                            minCount = 3,
+                                            thread = 8,
+                                            bucket=4000000)
+
+model_bigram.save_model(os.path.join(
+                        out_path, '{}_d{}_w{}_m{}_M{}.bin'.format(
+                        os.path.splitext(corpus)[0].split('/')[1], dim_best, ws_best, 2, 2)))
+del model_bigram
