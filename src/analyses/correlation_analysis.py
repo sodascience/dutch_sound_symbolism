@@ -65,7 +65,7 @@ def correlation_bootstrapper(embedding_df, seed_words_dict, delta_df, survey_pol
 
     # then, take 250 bootstrapped samples of half of the seed words, and perform the correlation analysis on the samples
     for sample in range(250):
-        print(name_type, association, sample)
+        print(name_type, association, embedding_df['model'].to_numpy()[0], sample)
         random.seed(sample)
 
         # sample the keys
@@ -82,22 +82,23 @@ def correlation_bootstrapper(embedding_df, seed_words_dict, delta_df, survey_pol
         # then save the correlation score (delta score) to the aggregate dictionary
         for word in sample_delta_dict.keys():
             for model in sample_delta_dict[word].keys():
-                concat_row = [word,
-                              name_type,
-                              association, 
-                              sample_delta_dict[word][model][0][0], 
-                              model, 
-                              unsampled_delta_dict[word][model][0][0],
-                              survey_poles_delta_dict[word][model][0][0],
-                              samples_left, 
-                              samples_right]
-                                         
-                delta_df = pd.concat([delta_df, pd.DataFrame(concat_row)])
+                delta_df = pd.concat([delta_df, pd.DataFrame({'name' : word, 
+                                                              'word_type' : name_type, 
+                                                              'association' : association, 
+                                                              'delta' : sample_delta_dict[word][model][0][0], 
+                                                              'model' : model, 
+                                                              'delta_all_names' : unsampled_delta_dict[word][model][0][0], 
+                                                              'delta_survey_poles' : survey_poles_delta_dict[word][model][0][0], 
+                                                              'wordset_left' : [samples_left], 
+                                                              'wordset_right' : [samples_right]})])
+
+    delta_df = delta_df.reset_index(drop=True)
 
     # save the df for later use
-    delta_df.to_csv('./processed_data/analyses/correlation_analysis/{}_{}_{}_correlation_bootstrap_scores.csv'.format(name_type, 
-                                                                                                                      association, 
-                                                                                                                      emb_type),
+    delta_df.to_csv('./processed_data/analyses/correlation_analysis/{}_{}_{}{}_correlation_bootstrap_scores.csv'.format(name_type, 
+                                                                                                                        association, 
+                                                                                                                        emb_type,
+                                                                                                                        model),
                     index = False)
 
     return delta_df
