@@ -1,53 +1,63 @@
-from src.analyses.regression_analysis import fasttext_analysis, bert_analysis
+from src.analyses.regression_analysis import fasttext_analysis, bert_analysis, grids_searcher, open_processed_wordscores_rds
 import pickle
+import pandas as pd
 
 ## LOAD DATA
+with open('./processed_data/analyses/dataframes/survey_data_ft_df.pkl', 'rb') as f:
+    survey_ft_df = pickle.load(f)   #['name', 'word_type', 'embedding_type', 'model', 'embedding']
 
-with open('./processed_data/embeddings/company_ft_embs.bin', 'rb') as f:
-    company_ft_embs = pickle.load(f)
-with open('./processed_data/embeddings/fnames_ft_embs.bin', 'rb') as f:
-    fnames_ft_embs = pickle.load(f)
-with open('./processed_data/embeddings/nonword_ft_embs.bin', 'rb') as f:
-    nonword_ft_embs = pickle.load(f)
+with open('./processed_data/analyses/dataframes/survey_data_bert_df.pkl', 'rb') as f:
+    survey_bert_df = pickle.load(f)
 
-with open('./processed_data/embeddings/company_bert_embs.bin', 'rb') as f:
-    company_bert_embs = pickle.load(f)
-with open('./processed_data/embeddings/fnames_bert_embs.bin', 'rb') as f:
-    fnames_bert_embs = pickle.load(f)
-with open('./processed_data/embeddings/nonword_bert_embs.bin', 'rb') as f:
-    nonword_bert_embs = pickle.load(f)
+word_scores = open_processed_wordscores_rds()
 
-
-## REGRESSION ANALYSES
+## SET IMPORTANT PARAMETERS
 LEXICAL = False
 M = 2
 RND_ITERS = 50
 FEATURE = 'embedding'
 TARGET = 'mean_rating'
-GROUP = 'type'
+GROUP = 'word_type'
 ITEM = 'name'
-FT_MODELS = ['0', '2', '2-3', '2-5']
+FT_MODELS = ['0', '2-5']
 BERT_LAYERS = list(range(12))
-ATTRIBUTES = ['feminine', 'good', 'smart', 'trustworthy']
+ASSOCIATIONS = ['feminine', 'good', 'smart', 'trustworthy']
 
-df_embeddings (columns = ['name', 'emb_model', 'embedding'])
-df_ratings (columns = ['name', 'name_type', 'attribute', 'mean_rating'])
+## GRID SEARCH
+# FASTTEXT
+merged_ft_df = pd.merge(survey_ft_df[survey_ft_df['model'].isin(FT_MODELS)], 
+                        word_scores, 
+                        on=['name', 'word_type'], 
+                        how='inner').reindex(
+                        columns = ['name', 'word_type', 'association', 'mean_rating', 'embedding_type', 'model', 'embedding'])
 
+grids_searcher(df = merged_ft_df,
+               associations = ASSOCIATIONS, 
+               x_col = FEATURE, 
+               y_col = TARGET, 
+               group_col = GROUP, 
+               emb_model = FT_MODELS)
 
+# BERT
+merged_bert_df = pd.merge(survey_bert_df[survey_bert_df['model'].isin(BERT_LAYERS)], 
+                          word_scores, 
+                          on=['name', 'word_type'], 
+                          how='inner').reindex(
+                          columns = ['name', 'word_type', 'association', 'mean_rating', 'embedding_type', 'model', 'embedding'])
+
+grids_searcher(df = merged_bert_df,
+               associations = ASSOCIATIONS, 
+               x_col = FEATURE, 
+               y_col = TARGET, 
+               group_col = GROUP, 
+               emb_model = BERT_LAYERS)
+
+## REGRESSION ANALYSIS
 # FASTTEXT
 
-company_ft_df, fnames_ft_df, nonword_ft_df = df_creator(rating_data, 
-                                                        emb_type = 'ft', 
-                                                        item = ITEM, 
-                                                        feature = FEATURE, 
-                                                        group = GROUP, 
-                                                        attributes = ATTRIBUTES, 
-                                                        target = TARGET, 
-                                                        emb_model=None)
+# hyperparameter_df = pd.DataFrame(columns = ['association', 'word_type', 'embedding_type', 'emb_model', 'units', 'dropout', 'act', 'n_layers', 'lr'])
 
-
+# regression_analysis(df, hyperparameter_df, associations, x_col, y_col, items_col, group_col, emb_models, units, dropout, act, n_layers, lr)
 
 
 # BERT
-
-company_bert_embs, fnames_bert_embs, nonword_bert_embs = fetch_bert_embeddings(bert_layer=None)

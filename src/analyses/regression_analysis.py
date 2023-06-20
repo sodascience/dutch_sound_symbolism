@@ -1,4 +1,4 @@
-import pickle
+import pyreadr
 import random
 import pandas as pd
 import numpy as np
@@ -13,56 +13,21 @@ from tensorflow.keras.callbacks import EarlyStopping
 from keras.layers import Dropout
 from tensorflow.keras.initializers import RandomNormal
 
-def fetch_ft_embeddings(emb_model=None):
-    with open('./processed_data/embeddings/company_ft_embs.bin', 'rb') as f:
-        company_ft_embs = pickle.load(f)
-    with open('./processed_data/embeddings/fnames_ft_embs.bin', 'rb') as f:
-        fnames_ft_embs = pickle.load(f)
-    with open('./processed_data/embeddings/nonword_ft_embs.bin', 'rb') as f:
-        nonword_ft_embs = pickle.load(f)
-
-    if emb_model != None:
-        for dictionary in [company_ft_embs, fnames_ft_embs, nonword_ft_embs]:
-            for word in dictionary.keys():
-                dictionary[word] = dictionary[word][emb_model]
-        
-        return company_ft_embs, fnames_ft_embs, nonword_ft_embs
-    
-    else:
-        return company_ft_embs, fnames_ft_embs, nonword_ft_embs
-    
 
 
-def fetch_bert_embeddings(emb_model=None):
-    with open('./processed_data/embeddings/company_bert_embs.bin', 'rb') as f:
-        company_bert_embs = pickle.load(f)
-    with open('./processed_data/embeddings/fnames_bert_embs.bin', 'rb') as f:
-        fnames_bert_embs = pickle.load(f)
-    with open('./processed_data/embeddings/nonword_bert_embs.bin', 'rb') as f:
-        nonword_bert_embs = pickle.load(f)
+def regression_analysis(df, hyperparameter_df, associations, x_col, y_col, items_col, group_col, emb_models, units, dropout, act, n_layers, lr):
+    emb_type = pd.unique(df['embedding_type'])[0]
 
-    if emb_model != None:
-        for dictionary in [company_bert_embs, fnames_bert_embs, nonword_bert_embs]:
-            for word in dictionary.keys():
-                dictionary[word] = dictionary[word][emb_model]
-        
-        return company_bert_embs, fnames_bert_embs, nonword_bert_embs
-    
-    else:
-        return company_bert_embs, fnames_bert_embs, nonword_bert_embs
+    input_dim = len(df[x_col][0])
+
+    for association in associations:
+        for embmodel in emb_models:
+            print('#####association: {}; emb_model: {};'.format(association, embmodel))
+            df_subset = df.loc[(df['model'] == embmodel) & (df['association'] == association)].reset_index(drop=True)
+            
 
 
-
-def fasttext_analysis(emb_model = None):
-    
-
-    return 
-
-
-
-def bert_analysis(emb_model = None):
-
-    return
+    return None
 
 
 def make(input_dim, units, dropout, act, n_layers, lr):
@@ -240,38 +205,45 @@ def predict(df, x_col, y_col, items_col, group_col, units, dropout_rate, act, n_
 
     return pd.DataFrame(predictions)
 
-def embedding_df_creator():
-    return
+def grids_searcher(df, associations, x_col, y_col, group_col, emb_model = None):
+    emb_type = pd.unique(df['embedding_type'])[0]
 
-def ratings_df_creator():
-    return
+    input_dim = len(df[x_col][0])
 
-def df_creator(rating_data, emb_type, item, feature, group, attributes, target, emb_model=None):
-    if emb_type  == 'ft':
-        company_embs, fname_embs, nonword_embs = fetch_ft_embeddings(emb_model=emb_model)        
+    for association in associations:
+        for embmodel in emb_model:
+            print('#####association: {}; emb_model: {};'.format(association, embmodel))
+            df_subset = df.loc[(df['model'] == embmodel) & (df['association'] == association)].reset_index(drop=True)
+            
+            search_df  = grid_search(df=df_subset,
+                                    x_col=x_col,
+                                    y_col=y_col,
+                                    group_col=group_col,
+                                    units=[25, 50, 150, input_dim, input_dim*2],
+                                    dropout=[0, 0.25, 0.5],
+                                    activations=['tanh', 'sigmoid', 'relu'],
+                                    n_layers=[1, 2, 3],
+                                    learning_rates=[0.001, 0.0001])
+            
+            search_df.to_csv('./processed_data/analyses/grid_search/{}_{}_{}_grid-search.csv'.format(association, emb_type, emb_model), index = False, index_label = False)
 
-    elif emb_type == 'bert':
-        company_embs, fname_embs, nonword_embs = fetch_bert_embeddings(emb_model=emb_model) 
+def open_processed_wordscores_rds():
+    df_r = pyreadr.read_r('./processed_data/survey_ratings/word_scores.rds')
+    word_scores = df_r[None]
 
-    else:
-        raise Exception("emb_type should be equal to 'ft' for fastText embeddings, or 'bert' for BERT embeddings.")
+    word_map = {'vrouwelijk': 'feminine',
+                'slecht': 'good',
+                'slim': 'smart',
+                'betrouwbaar': 'trustworthy',
+                'bedrijfsnamen': 'company',
+                'namen': 'fnames',
+                'nepwoorden': 'nonword'}
     
-    df_embeddings_company = embedding_df_creator(company_embs)
-    df_embeddings_fnames = embedding_df_creator(fname_embs)
-    df_embeddings_nonword = embedding_df_creator(nonword_embs)
+    word_scores.loc[word_scores['association'] == 'slecht', 'mean'] = -word_scores.loc[word_scores['association'] == 'slecht', 'mean']
+    word_scores['word'] = word_scores['word'].str.lower()
+    word_scores[['association', 'wordtype']] = word_scores[['association', 'wordtype']].apply(lambda x: x.str.replace('|'.join(word_map.keys()), lambda y: word_map[y.group()], regex=True))
 
-    df_ratings = ratings_df_creator(rating_data)
+    word_scores = word_scores.rename(columns={'word':'name', 'mean':'mean_rating', 'wordtype':'word_type'})
 
-    df_combined_company = pd.merge(df_embeddings_company[[item, feature]],
-                                   df_ratings[[item, group, attributes, target]],
-                                   on=item)
-    
-    df_combined_fnames = pd.merge(df_embeddings_fnames[[item, feature]],
-                                   df_ratings[[item, group, attributes, target]],
-                                   on=item)
-    
-    df_combined_nonword = pd.merge(df_embeddings_nonword[[item, feature]],
-                                   df_ratings[[item, group, attributes, target]],
-                                   on=item)
-    
-    return df_combined_company, df_combined_fnames, df_combined_nonword
+
+    return word_scores[['mean_rating', 'name', 'association', 'word_type']]

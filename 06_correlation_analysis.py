@@ -1,4 +1,4 @@
-from src.analyses.correlation_analysis import generate_seed_word_embeddings, correlation_bootstrapper, fetch_prepared_embedding_lists
+from src.analyses.correlation_analysis import generate_seed_word_embeddings, perform_cosine_analyses_and_save_dfs, fetch_prepared_embedding_lists
 import pickle
 import itertools
 import pandas as pd
@@ -25,27 +25,22 @@ survey_poles = {'feminine': ['vrouwelijk', 'mannelijk'], 'good': ['goed', 'slech
 # FastText
 seed_word_list_ft = fetch_prepared_embedding_lists(emb_type = 'ft', emb_model=None)
 
-for word_type in pd.unique(survey_ft_df['word_type']).tolist():
-    for association in seed_word_list_ft.keys():
-        for model in pd.unique(survey_ft_df['model']).tolist():
-            emb_df_subset = survey_ft_df.loc[(survey_ft_df['word_type'] == word_type) & (survey_ft_df['model'] == model)].reset_index()
-            delta_df = pd.DataFrame(columns=['name', 'word_type', 'association', 'delta', 'model', 'delta_all_names', 'delta_survey_poles', 'wordset_left', 'wordset_right'])
-            seed_words_subset = seed_word_list_ft[association]
-            survey_poles_subset = survey_poles[association]
-
-            delta_df = correlation_bootstrapper(emb_df_subset, seed_words_subset, delta_df, survey_poles_subset, association, emb_model=None)
+perform_cosine_analyses_and_save_dfs(input_df = survey_ft_df, 
+                                     seed_words = seed_word_list_ft, 
+                                     survey_poles = survey_poles, 
+                                     emb_type = 'ft', 
+                                     word_types = pd.unique(survey_ft_df['word_type']).tolist(), 
+                                     associations = seed_word_list_ft.keys(), 
+                                     models = ['0', '2-5'])
 
 
 # BERT
 seed_word_list_bert = fetch_prepared_embedding_lists(emb_type = 'bert', emb_model=None)
 
-for word_type in pd.unique(survey_bert_df['word_type']).tolist():
-    for association in seed_word_list_bert.keys():
-        for model in pd.unique(survey_bert_df['model']).tolist():
-            emb_df_subset = survey_bert_df.loc[(survey_bert_df['word_type'] == word_type) & (survey_bert_df['model'] == model)].reset_index()
-            delta_df = pd.DataFrame(columns=['name', 'word_type', 'association', 'delta', 'model', 'delta_all_names', 'delta_survey_poles', 'wordset_left', 'wordset_right'])
-            seed_words_subset = seed_word_list_bert[association]
-            survey_poles_subset = survey_poles[association]
-            
-            delta_df = correlation_bootstrapper(emb_df_subset, seed_words_subset, delta_df, survey_poles_subset, association, emb_model=None)
-
+perform_cosine_analyses_and_save_dfs(input_df = survey_bert_df, 
+                                     seed_words = seed_word_list_bert, 
+                                     survey_poles = survey_poles, 
+                                     emb_type = 'bert', 
+                                     word_types = pd.unique(survey_bert_df['word_type']).tolist(), 
+                                     associations = seed_word_list_bert.keys(), 
+                                     models = pd.unique(survey_bert_df['model']).tolist())
