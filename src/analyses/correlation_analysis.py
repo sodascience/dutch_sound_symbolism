@@ -166,8 +166,8 @@ def cosine_bootstrapper(embedding_df, delta_df, unsampled_delta_dict, seed_words
         for word in sample_delta_dict.keys():
             for model in sample_delta_dict[word].keys():
                 row = [word, name_type, association, model, 
-                       sample_delta_dict[word][model][0], 
-                       unsampled_delta_dict[word][model][0]] + [0] * n_seed_words
+                       sample_delta_dict[word][model], 
+                       unsampled_delta_dict[word][model]] + [0] * n_seed_words
                 
                 col_names = list(delta_df.columns) 
                 sample_words = samples_left + samples_right
