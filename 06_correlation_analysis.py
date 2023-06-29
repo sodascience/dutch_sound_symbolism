@@ -1,7 +1,7 @@
-from src.analyses.correlation_analysis import generate_seed_word_embeddings, perform_cosine_analyses_and_save_dfs, fetch_prepared_embedding_lists
+rom src.analyses.correlation_analysis import generate_seed_word_embeddings, perform_cosine_analyses_and_save_dfs, fetch_prepared_embedding_lists
 import pickle
 import itertools
-import pandas as pd
+import pandfas as pd
 
 ## LOAD DATA
 
@@ -20,18 +20,16 @@ with open('./processed_data/analyses/dataframes/survey_data_bert_df.pkl', 'rb') 
 # generate_seed_word_embeddings('ft')
 # generate_seed_word_embeddings('bert')
 
-survey_poles = {'feminine': ['vrouwelijk', 'mannelijk'], 'good': ['goed', 'slecht'], 'smart': ['slim', 'dom'], 'trustworthy': ['betrouwbaar', 'onbetrouwbaar']}
-
 # FastText
 seed_word_list_ft = fetch_prepared_embedding_lists(emb_type = 'ft', emb_model=None)
 
 perform_cosine_analyses_and_save_dfs(input_df = survey_ft_df, 
                                      seed_words = seed_word_list_ft, 
-                                     survey_poles = survey_poles, 
                                      emb_type = 'ft', 
                                      word_types = pd.unique(survey_ft_df['word_type']).tolist(), 
                                      associations = seed_word_list_ft.keys(), 
-                                     models = ['0', '2-5'])
+                                     models = ['0', '2-5'],
+                                     bootstrap = False)
 
 
 # BERT
@@ -39,8 +37,8 @@ seed_word_list_bert = fetch_prepared_embedding_lists(emb_type = 'bert', emb_mode
 
 perform_cosine_analyses_and_save_dfs(input_df = survey_bert_df, 
                                      seed_words = seed_word_list_bert, 
-                                     survey_poles = survey_poles, 
                                      emb_type = 'bert', 
                                      word_types = pd.unique(survey_bert_df['word_type']).tolist(), 
                                      associations = seed_word_list_bert.keys(), 
-                                     models = pd.unique(survey_bert_df['model']).tolist())
+                                     models = pd.unique(survey_bert_df['model']).tolist(), 
+                                     bootstrap = False)

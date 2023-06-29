@@ -225,7 +225,7 @@ def grids_searcher(df, associations, x_col, y_col, group_col, emb_model = None):
                                     n_layers=[1, 2, 3],
                                     learning_rates=[0.001, 0.0001])
             
-            search_df.to_csv('./processed_data/analyses/grid_search/{}_{}_{}_grid-search.csv'.format(association, emb_type, emb_model), index = False, index_label = False)
+            search_df.to_csv('./processed_data/analyses/grid_search/{}_{}{}_grid-search.csv'.format(association, emb_type, embmodel), index = False, index_label = False)
 
 def open_processed_wordscores_rds():
     df_r = pyreadr.read_r('./processed_data/survey_ratings/word_scores.rds')

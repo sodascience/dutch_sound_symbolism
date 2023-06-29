@@ -6,40 +6,56 @@ import random
 import statistics
 import itertools
 import pandas as pd
+import numpy as np
 
 
 
-def cosine_analyzer(embedding_df, seed_words_left, seed_words_right):
-    assert len(seed_words_left) == len(seed_words_right), f'expected equal number of words in both seed word lists, got: left = {len(seed_words_left)}, right = {len(seed_words_right)}'
+def perform_cosine_analyses_and_save_dfs(input_df, seed_words, emb_type, word_types, associations, models, bootstrap=False):
+    if (emb_type == 'bert' and len(models) == 12):
+        model_types = '-all-layers'
+    else:
+        model_types = '_&_'.join(models)
 
-    delta_dict = {}
+    for association in associations:
+        # get a subset of the seed_words to only get those seed words/poles related to the association at hand
+        seed_words_subset = seed_words[association]
+        
+        # get a list of only the actual seed words, not with any embeddings attached
+        seed_word_list = list(seed_words_subset[0].keys()) + list(seed_words_subset[1].keys())
 
-    for word in pd.unique(embedding_df['name']).tolist():
-        for model in pd.unique(embedding_df['model']).tolist(): 
-            for seed_word_left, seed_word_right in zip(seed_words_left, seed_words_right):
-                word_embedding = embedding_df['embedding'].loc[(embedding_df['name'] == word) & (embedding_df['model'] == model)].to_numpy()[0].reshape(1, -1)
+        # create a list of the column names for our dataframe
+        if bootstrap == True:
+            column_names = ['name', 'word_type', 'association', 'model', 'delta', 'delta_all_names'] + seed_word_list
 
-                delta = cosine_similarity(word_embedding, seed_word_left[model].reshape(1, -1)) \
-                        - cosine_similarity(word_embedding, seed_word_right[model].reshape(1, -1))
+        else:
+            column_names = ['name', 'word_type', 'association', 'model', 'delta_all_names']
 
-                if word in delta_dict.keys():
-                    delta_dict[word][model] = delta
+        # initialize an empty data frame for all sub-conditions of the current association
+        deltas_df = pd.DataFrame(columns = column_names)
 
-                else: 
-                    delta_dict[word] = {}
-                    delta_dict[word][model] = delta
+        for word_type in word_types:
+            for model in models:
+                # get a subset of the input_df dataframe, to only get the slice of the df related to the word type and model at hand
+                emb_df_subset = input_df.loc[(input_df['word_type'] == word_type) & (input_df['model'] == model)].reset_index()
+
+                # initialize an empty data frame for the subsample
+                delta_df = pd.DataFrame(columns=column_names)
+                
+                # feed data to the cosine prep function
+                delta_df = cosine_var_preparer(emb_df_subset, seed_words_subset, delta_df, association, emb_model=model, bootstrap=bootstrap)
+
+                deltas_df = pd.concat([deltas_df, delta_df])
     
-    return delta_dict
+        deltas_df.to_csv('./processed_data/analyses/correlation_analysis/{}_{}{}_bootstrap={}_cosine_scores.csv'.format(association, emb_type, model_types, bootstrap), index=False)
 
 
 
-def cosine_bootstrapper(embedding_df, seed_words_dict, delta_df, survey_poles, association, emb_model = None):
-    # the following function does the bootstrapping analysis, and returns both the raw scores (boot_scores) and
-    # a processed df with aggregate scores. The function also saves both the boot_scores dictionary and processed_df
-    # as a .bin file and .csv file, respectively.
+    
+def cosine_var_preparer(embedding_df, seed_words_dict, delta_df, association, emb_model = None, bootstrap = False):
+    # the following function prepares the variables and dfs to be fed to the looper function, and if bootstrap == True,
+    # returns both the raw scores (boot_scores) and a processed df with aggregate scores. 
 
     name_type = embedding_df['word_type'].to_numpy()[0]
-    emb_type = embedding_df['embedding_type'].to_numpy()[0]
 
     if emb_model == None:
         pass
@@ -54,13 +70,79 @@ def cosine_bootstrapper(embedding_df, seed_words_dict, delta_df, survey_poles, a
     n_seed_words = len(seed_words_left.keys()) + len(seed_words_right.keys())
 
     # first get a baseline score using all of the seed words for the cosine analysis
-    # as well as one with only the term used in the survey and its direct antonym
     unsampled_seed_words_left = [seed_words_left[s] for s in seed_words_left.keys()]
     unsampled_seed_words_right = [seed_words_right[s] for s in seed_words_right.keys()]
 
-    unsampled_delta_dict = cosine_analyzer(embedding_df, unsampled_seed_words_left, unsampled_seed_words_right)
-    survey_poles_delta_dict = cosine_analyzer(embedding_df, [seed_words_left[survey_poles[0]]], [seed_words_right[survey_poles[1]]])
+    unsampled_delta_dict = cosine_looper(embedding_df, unsampled_seed_words_left, unsampled_seed_words_right)
 
+    if bootstrap == True:
+        delta_df = cosine_bootstrapper(embedding_df,
+                                       delta_df,
+                                       unsampled_delta_dict, 
+                                       seed_words_left,
+                                       seed_words_right,
+                                       n_seed_words,
+                                       name_type,
+                                       association)
+
+        return delta_df
+    
+    else:
+        for word in unsampled_delta_dict.keys():
+            for model in unsampled_delta_dict[word].keys():
+                row = [word, name_type, association, model, unsampled_delta_dict[word][model]]
+                col_names = list(delta_df.columns)
+
+                temp_df = pd.DataFrame(data = [row], columns = col_names)
+                
+                delta_df = pd.concat([delta_df, temp_df])
+        
+        return delta_df
+
+
+
+def cosine_looper(embedding_df, seed_words_left, seed_words_right):
+    assert len(seed_words_left) == len(seed_words_right), f'expected equal number of words in both seed word lists, got: left = {len(seed_words_left)}, right = {len(seed_words_right)}'
+
+    delta_dict = {}
+
+    for word in pd.unique(embedding_df['name']).tolist():
+        for model in pd.unique(embedding_df['model']).tolist(): 
+            word_embedding = embedding_df['embedding'].loc[(embedding_df['name'] == word) & (embedding_df['model'] == model)].to_numpy()[0].reshape(1, -1)
+            
+            delta = cosine_calculator(word_embedding, seed_words_left, seed_words_right, model)
+
+            if word in delta_dict.keys():
+                delta_dict[word][model] = delta
+
+            else: 
+                delta_dict[word] = {}
+                delta_dict[word][model] = delta
+    
+    return delta_dict
+
+
+
+
+def cosine_calculator(word_embedding, seed_words_left, seed_words_right, model):
+    # prepare two lists to append the cosine similarity scores with all seed words to
+    cosine_similarities_left = []
+    cosine_similarities_right = []
+
+    for seed_word_left, seed_word_right in zip(seed_words_left, seed_words_right):
+        # for each seed word, calculate the cosine similarity between the target word/name and the seed word, append to the list
+        cosine_similarities_left.append(cosine_similarity(word_embedding, seed_word_left[model].reshape(1, -1)))
+        cosine_similarities_right.append(cosine_similarity(word_embedding, seed_word_right[model].reshape(1, -1)))
+
+    # calculate the difference (delta) between the average cosine similarity of the target word/name with the 'left' seed words and the 'right' seed words
+    delta = np.mean(cosine_similarities_left) - np.mean(cosine_similarities_right)
+
+    return delta
+
+
+
+
+def cosine_bootstrapper(embedding_df, delta_df, unsampled_delta_dict, seed_words_left, seed_words_right, n_seed_words, name_type, association):
     # calculate how much seed words are needed to get a roughly 50% sample
     words_per_bootstrap = math.ceil(0.5*len(seed_words_left))
 
@@ -78,15 +160,14 @@ def cosine_bootstrapper(embedding_df, seed_words_dict, delta_df, survey_poles, a
         sample_words_right = [seed_words_right[s] for s in samples_right]
 
         # feed the data to the cosine analysis function
-        sample_delta_dict = cosine_analyzer(embedding_df, sample_words_left, sample_words_right)
+        sample_delta_dict = cosine_looper(embedding_df, sample_words_left, sample_words_right)
 
         # then save the cosine score (delta score) to the aggregate dictionary
         for word in sample_delta_dict.keys():
             for model in sample_delta_dict[word].keys():
                 row = [word, name_type, association, model, 
-                       sample_delta_dict[word][model][0][0], 
-                       unsampled_delta_dict[word][model][0][0], 
-                       survey_poles_delta_dict[word][model][0][0]] + [0] * n_seed_words
+                       sample_delta_dict[word][model][0], 
+                       unsampled_delta_dict[word][model][0]] + [0] * n_seed_words
                 
                 col_names = list(delta_df.columns) 
                 sample_words = samples_left + samples_right
@@ -95,10 +176,9 @@ def cosine_bootstrapper(embedding_df, seed_words_dict, delta_df, survey_poles, a
                 temp_df[sample_words] = 1
 
                 delta_df = pd.concat([delta_df, temp_df])
+    
+    return delta_df.reset_index(drop=True)
 
-    delta_df = delta_df.reset_index(drop=True)
-
-    return delta_df
 
 
 
@@ -168,7 +248,6 @@ def generate_seed_word_embeddings(emb_type : str):
         pickle.dump(untrust_words_embs, f)
 
 
-
 def fetch_seed_embeddings(emb_type, emb_model=None):
     with open('./processed_data/embeddings/feminine-words_' + emb_type + '_embs.bin', 'rb') as f:
         fem_words_embs = pickle.load(f)
@@ -208,39 +287,3 @@ def fetch_prepared_embedding_lists(emb_type, emb_model=None):
                          'smart': [smart_words_embs, dumb_words_embs], 'trustworthy': [trust_words_embs, untrust_words_embs]}
 
     return seed_word_list
-
-
-def perform_cosine_analyses_and_save_dfs(input_df, seed_words, survey_poles, emb_type, word_types, associations, models):
-    if (emb_type == 'bert' and len(models) == 12):
-        model_types = '-all-layers'
-    else:
-        model_types = '_&_'.join(models)
-
-    for association in associations:
-        # get a subset of the seed_words & survey_poles dicts, to only get those seed words/poles related to the association at hand, and
-        seed_words_subset = seed_words[association]
-        survey_poles_subset = survey_poles[association]
-
-        # get a list of only the actual seed words, not with any embeddings attached
-        seed_word_list = list(seed_words_subset[0].keys()) + list(seed_words_subset[1].keys())
-
-        # create a list of the column names for our dataframe
-        column_names = ['name', 'word_type', 'association', 'model', 'delta', 'delta_all_names', 'delta_survey_poles'] + seed_word_list
-
-        # initialize an empty data frame for all sub-conditions of the current association
-        deltas_df = pd.DataFrame(columns = column_names)
-
-        for word_type in word_types:
-            for model in models:
-                # get a subset of the input_df dataframe, to only get the slice of the df related to the word type and model at hand
-                emb_df_subset = input_df.loc[(input_df['word_type'] == word_type) & (input_df['model'] == model)].reset_index()
-
-                # initialize an empty data frame for the subsample
-                delta_df = pd.DataFrame(columns=column_names)
-                
-                # run the bootstrapper
-                delta_df = cosine_bootstrapper(emb_df_subset, seed_words_subset, delta_df, survey_poles_subset, association, emb_model=model)
-
-                deltas_df = pd.concat([deltas_df, delta_df])
-    
-        deltas_df.to_csv('./processed_data/analyses/correlation_analysis/' + association + '_' + emb_type + model_types + '_cosine_bootstrap_scores.csv', index=False)
