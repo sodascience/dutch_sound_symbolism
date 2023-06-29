@@ -65,8 +65,8 @@ for (i in 1:length(associations)) {
     
       cor_df <- merge(temp_ratings, temp_data, by.x = 'word', by.y = 'name')
       
-      corr <- cor(temp_ratings$mean, 
-                  temp_data$delta_all_names)
+      corr <- cor(cor_df$mean, 
+                  cor_df$delta_all_names)
       
       correlations_ft[nrow(correlations_ft)+1, ] <- c('ft', association, wordtype, modeltype, corr)
     
@@ -99,8 +99,8 @@ for (i in 1:length(associations)) {
       
       cor_df <- merge(temp_ratings, temp_data, by.x = 'word', by.y = 'name')
       
-      corr <- cor(temp_ratings$mean, 
-                  temp_data$delta_all_names)
+      corr <- cor(cor_df$mean, 
+                  cor_df$delta_all_names)
       
       correlations_bert[nrow(correlations_bert)+1, ] <- c('bert', association, wordtype, modeltype, corr)
       

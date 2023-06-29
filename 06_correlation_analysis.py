@@ -1,7 +1,7 @@
-rom src.analyses.correlation_analysis import generate_seed_word_embeddings, perform_cosine_analyses_and_save_dfs, fetch_prepared_embedding_lists
+from src.analyses.correlation_analysis import generate_seed_word_embeddings, perform_cosine_analyses_and_save_dfs, fetch_prepared_embedding_lists
 import pickle
 import itertools
-import pandfas as pd
+import pandas as pd
 
 ## LOAD DATA
 
