@@ -3,6 +3,9 @@ import pandas as pd
 import fasttext
 
 def get_bert_embeddings(words):
+    if type(words) != list:
+        words = words.tolist()
+        
     embedding_texts = [' {0} '.format(word) for word in words]
 
     model = ContextualizedEmbedder('pdelobelle/robbert-v2-dutch-base', max_length=514)
@@ -26,8 +29,11 @@ def get_bert_embeddings(words):
 
     return embs_dict
 
-def get_fasttext_embeddings(words):
-    models_list = ['0', '2', '2-3', '2-5']
+def get_fasttext_embeddings(words, models = False):
+    if models == False:
+        models_list = ['0', '2', '2-3', '2-5']
+    else:
+        models_list = models
 
     embs_dict = {}
 

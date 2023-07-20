@@ -41,4 +41,4 @@ perform_cosine_analyses_and_save_dfs(input_df = survey_bert_df,
                                      word_types = pd.unique(survey_bert_df['word_type']).tolist(), 
                                      associations = seed_word_list_bert.keys(), 
                                      models = pd.unique(survey_bert_df['model']).tolist(), 
-                                     bootstrap = False)
+                                     bootstrap = True)

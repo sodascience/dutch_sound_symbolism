@@ -15,17 +15,28 @@ from tensorflow.keras.initializers import RandomNormal
 
 
 
-def regression_analysis(df, hyperparameter_df, associations, x_col, y_col, items_col, group_col, emb_models, units, dropout, act, n_layers, lr):
-    emb_type = pd.unique(df['embedding_type'])[0]
+def regression_analysis(df, hyperparameter_df, x_col, y_col, items_col, group_col, ft=False):
+    emb_type = pd.unique(hyperparameter_df['emb_type'])[0]
 
-    input_dim = len(df[x_col][0])
+    for association in pd.unique(df['association']).tolist():
+        for emb_model in pd.unique(hyperparameter_df[hyperparameter_df['association'] == association]['emb_model']).tolist():
+            print('#####association: {}; emb_model: {};'.format(association, emb_model))
+            df_subset = df.loc[(df['model'] == emb_model) & (df['association'] == association)].reset_index(drop=True)
 
-    for association in associations:
-        for embmodel in emb_models:
-            print('#####association: {}; emb_model: {};'.format(association, embmodel))
-            df_subset = df.loc[(df['model'] == embmodel) & (df['association'] == association)].reset_index(drop=True)
-            
+            if ft == True:
+                hyperparameters = hyperparameter_df.loc[(hyperparameter_df['association'] == association) & (hyperparameter_df['emb_model'] == 0)]
+            else:
+                hyperparameters = hyperparameter_df.loc[(hyperparameter_df['association'] == association) & (hyperparameter_df['emb_model'] == emb_model)]
 
+            units = pd.unique(hyperparameters['nodes']).tolist()[0]
+            dropout = pd.unique(hyperparameters['dropout']).tolist()[0]
+            act = pd.unique(hyperparameters['act']).tolist()[0]
+            n_layers = pd.unique(hyperparameters['n_layers']).tolist()[0]
+            lr = pd.unique(hyperparameters['lr']).tolist()[0]
+
+            prediction_df = predict(df_subset, x_col, y_col, items_col, group_col, units, dropout, act, n_layers, lr)
+
+            prediction_df.to_csv('./processed_data/analyses/regression_analysis/{}_{}{}_predictions.csv'.format(association, emb_type, emb_model), )
 
     return None
 
@@ -205,7 +216,7 @@ def predict(df, x_col, y_col, items_col, group_col, units, dropout_rate, act, n_
 
     return pd.DataFrame(predictions)
 
-def grids_searcher(df, associations, x_col, y_col, group_col, emb_model = None):
+def grids_searcher(df, associations, x_col, y_col, group_col, emb_model = None, fnames_lex = False):
     emb_type = pd.unique(df['embedding_type'])[0]
 
     input_dim = len(df[x_col][0])
@@ -219,13 +230,15 @@ def grids_searcher(df, associations, x_col, y_col, group_col, emb_model = None):
                                     x_col=x_col,
                                     y_col=y_col,
                                     group_col=group_col,
-                                    units=[25, 50, 150, input_dim, input_dim*2],
-                                    dropout=[0, 0.25, 0.5],
-                                    activations=['tanh', 'sigmoid', 'relu'],
-                                    n_layers=[1, 2, 3],
+                                    units=[25, 50, 150], #[25, 50, 150, input_dim, input_dim*2],
+                                    dropout=[0.25, 0.5], #[0, 0.25, 0.5],
+                                    activations=['sigmoid', 'relu'], #['tanh', 'sigmoid', 'relu'],
+                                    n_layers=[1], #[1, 2, 3],
                                     learning_rates=[0.001, 0.0001])
-            
-            search_df.to_csv('./processed_data/analyses/grid_search/{}_{}{}_grid-search.csv'.format(association, emb_type, embmodel), index = False, index_label = False)
+            if fnames_lex == False:
+                search_df.to_csv('./processed_data/analyses/grid_search/{}_{}{}_grid-search.csv'.format(association, emb_type, embmodel), index = False, index_label = False)
+            else:
+                search_df.to_csv('./processed_data/analyses/grid_search/{}_{}{}_grid-search_first-names-lexical_True.csv'.format(association, emb_type, embmodel), index = False, index_label = False)
 
 def open_processed_wordscores_rds():
     df_r = pyreadr.read_r('./processed_data/survey_ratings/word_scores.rds')

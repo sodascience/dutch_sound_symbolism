@@ -111,3 +111,26 @@ for (i in 1:length(associations)) {
 write.csv(correlations_bert, 
           file = paste(path_results, 'correlations_bert-all-layers_bootstrap=False.csv', sep = ''), 
           row.names = FALSE)
+
+correlations_all <- full_join(correlations_ft, correlations_bert)
+
+write.csv(correlations_all, 
+          file = paste(path_results, 'correlations_ft0&2-5_&_bert-all-layers_bootstrap=False.csv', sep = ''),
+          row.names = FALSE)
+
+correlations_highest <- correlations_all %>%
+  dplyr::group_by(emb_type, association, word_type) %>%
+  dplyr::slice_max(correlation)
+
+
+similarity_delta_df <-
+  bind_rows(
+    fasttext = bind_rows(cosines_list_ft),
+    bert = bind_rows(cosines_list_bert) %>%
+      mutate(model = as.character(model)),
+    .id = "model_type"
+  ) %>%
+  rename(similarity_delta = delta_all_names) %>%
+  mutate(across(where(is.character), as_factor)) 
+
+write_rds(similarity_delta_df, file=paste0(path_results, 'similarity_delta_df.rds'))
