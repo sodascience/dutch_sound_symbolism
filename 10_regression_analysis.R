@@ -1,3 +1,7 @@
+# This script is used to analyze and visualize the regression analysis data 
+# generated using script 08 with the optimal hyperparameter settings calculated
+# using script 09. 
+
 library(ggplot2)
 library(mgcv)
 library(itsadug)

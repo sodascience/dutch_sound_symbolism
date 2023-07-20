@@ -1,13 +1,25 @@
-from src.embeddings.embedding_fetchers import get_bert_embeddings, get_fasttext_embeddings, df_maker
+'''
+This script is used to generate data for the correlation analysis and grid search
+using the open access data gathered by other researchers. The data generated using 
+this script can be analyzed using script 12.
+
+Note: due to time constraints, regression analyses using the grid search results 
+were not implemented for the open access data
+'''
+
+from src.analyses.extra_analyses import create_external_data_dfs, generate_concreteness_seed_embeddings, load_prepared_concreteness_seed_embeddings_dict
 from src.analyses.correlation_analysis import perform_cosine_analyses_and_save_dfs, fetch_prepared_embedding_lists
+from src.analyses.regression_analysis import grids_searcher
 import pyreadr
 import pickle
 import pandas as pd
 
 path_df = './processed_data/analyses/dataframes/'
 
-# create_external_data_dfs()
+# using the external data, create cleaned dataframes that can be used for our analyses
+create_external_data_dfs()
 
+# open the dataframe pickle files
 with open(path_df + 'brysbaert_2014_concreteness_ft_df.pkl', 'rb') as f:
     brysbaert_ft_df = pickle.load(f)
 
@@ -20,13 +32,16 @@ with open(path_df + 'vankrunkelsven_2022_gender_ft_df.pkl', 'rb') as f:
 with open(path_df + 'vankrunkelsven_2022_gender_bert_df.pkl', 'rb') as f:
     vankrunkelsven_bert_df = pickle.load(f)
 
-# generate_concreteness_seed_embeddings()
+# generate embeddings for the seed words used for the concreteness correlation analysis
+generate_concreteness_seed_embeddings()
 
-## ANALYSES
+## CORRELATION ANALYSIS
 # Concreteness
+# open fasttext and bert seed word embedding dictionaries
 con_seed_embs_ft = load_prepared_concreteness_seed_embeddings_dict('ft')
 con_seed_embs_bert = load_prepared_concreteness_seed_embeddings_dict('bert')
 
+# perform the cosine analyses and save the dataframes for fasttext and BERT
 perform_cosine_analyses_and_save_dfs(input_df = brysbaert_ft_df, 
                                      seed_words = con_seed_embs_ft, 
                                      emb_type = 'ft', 
@@ -44,11 +59,14 @@ perform_cosine_analyses_and_save_dfs(input_df = brysbaert_bert_df,
                                      bootstrap = False)
 
 # Gender
+# open fasttext and bert seed word embedding dictionaries created for the (femininity)
+# correlation analysis, pick the feminine data and label it as 'gender' in a new dictionary
 fem_seed_embs_ft = fetch_prepared_embedding_lists(emb_type = 'ft', emb_model=None)['feminine']
 fem_seed_embs_ft = {'gender' : fem_seed_embs_ft}
 fem_seed_embs_bert = fetch_prepared_embedding_lists(emb_type = 'bert', emb_model=None)['feminine']
 fem_seed_embs_bert = {'gender' : fem_seed_embs_bert}
 
+# perform the cosine analyses and save the dataframes for fasttext and BERT
 perform_cosine_analyses_and_save_dfs(input_df = vankrunkelsven_ft_df, 
                                      seed_words = fem_seed_embs_ft, 
                                      emb_type = 'ft', 
@@ -66,70 +84,96 @@ perform_cosine_analyses_and_save_dfs(input_df = vankrunkelsven_bert_df,
                                      bootstrap = False)
 
 
+## REGRESSION ANALYSIS
+# SET IMPORTANT PARAMETERS
+M = 2
+RND_ITERS = 50
+FEATURE = 'embedding'
+TARGET = 'mean_rating'
+GROUP = 'word_type'
+ITEM = 'name'
+FT_MODELS = ['0', '2-5']
+BERT_LAYERS = list(range(12))
 
-# FUNCTIONS
-def generate_concreteness_seed_embeddings():
-    concrete_seed_words = ['concreet', 'concrete', 'concreter', 'concreetheid', 'tastbaar', 'tastbare', 'tastbaarheid', 'duidelijk', 'duidelijke', 
-                       'duidelijkheid', 'expliciet', 'expliciete', 'explicietheid', 'materieel', 'materiële', 'grijpbaar', 'grijpbare', 'grijpbaarheid']
-    abstract_seed_words = ['abstract', 'abstracte', 'abstracter', 'abstractheid', 'ontastbaar', 'ontastbare', 'ontastbaarheid', 'onduidelijk', 'onduidelijke', 
-                        'onduidelijkheid', 'impliciet', 'impliciete', 'implicietheid', 'immaterieel', 'immateriële', 'ongrijpbaar', 'ongrijpbare', 'ongrijpbaarheid']
-    con_embs_ft = get_fasttext_embeddings(concrete_seed_words)
-    con_embs_bert = get_bert_embeddings(concrete_seed_words)
-    abs_embs_ft = get_fasttext_embeddings(abstract_seed_words)
-    abs_embs_bert = get_bert_embeddings(abstract_seed_words)
-    embs_path = './processed_data/embeddings/'
-    with open(embs_path + 'concrete-words_ft_embs.bin', 'wb') as f:
-        pickle.dump(con_embs_ft, f)
-    with open(embs_path + 'concrete-words_bert_embs.bin', 'wb') as f:
-        pickle.dump(con_embs_bert, f)
-    with open(embs_path + 'abstract-words_ft_embs.bin', 'wb') as f:
-        pickle.dump(abs_embs_ft, f)
-    with open(embs_path + 'abstract-words_bert_embs.bin', 'wb') as f:
-        pickle.dump(abs_embs_bert, f)
+# Concreteness
+# load the word norms data and rename columns
+brysbaert_scores_df = pyreadr.read_r('./processed_data/brysbaert_2014.rds')[None]
+brysbaert_scores_df = brysbaert_scores_df.rename(columns = {'word' : 'name',
+                                                            'concreteness_brysbaert' : 'mean_rating'})
 
+# fastText
+# merge the word norms data and the word embeddings into a single dataframe
+merged_con_ft_df = pd.merge(brysbaert_ft_df[brysbaert_ft_df['model'].isin(FT_MODELS)], 
+                            brysbaert_scores_df, 
+                            on=['name'], 
+                            how='inner').reindex(
+                            columns = ['name', 'word_type', 'association', 'mean_rating', 'embedding_type', 'model', 'embedding'])
+merged_con_ft_df['association'] = 'concreteness'
 
-def load_prepared_concreteness_seed_embeddings_dict(model):
-    embs_path = './processed_data/embeddings/'
-    if model == 'ft':
-        with open(embs_path + 'concrete-words_ft_embs.bin', 'rb') as f:
-            con_embs_ft = pickle.load(f)
-        with open(embs_path + 'abstract-words_ft_embs.bin', 'rb') as f:
-            abs_embs_ft = pickle.load(f)
-        return {'concreteness' : [con_embs_ft, abs_embs_ft]}
-    elif model == 'bert':
-        with open(embs_path + 'concrete-words_bert_embs.bin', 'rb') as f:
-            con_embs_bert = pickle.load(f)
-        with open(embs_path + 'abstract-words_bert_embs.bin', 'rb') as f:
-            abs_embs_bert = pickle.load(f)
-        return {'concreteness' : [con_embs_bert, abs_embs_bert]}
-    else:
-        raise Exception("emb_type should be equal to 'ft' for fastText embeddings, or 'bert' for BERT embeddings.")
-
-def create_external_data_dfs():
-    brysbaert_df = pyreadr.read_r('./processed_data/brysbaert_2014.rds')[None]
-    speed_df = pyreadr.read_r('./processed_data/speed_2021.rds')[None]
-    vankrunkelsven_df = pyreadr.read_r('./processed_data/vankrunkelsven_2022.rds')[None]
+# perform the grid search
+grids_searcher(df = merged_con_ft_df.dropna(), # Takes soooo long, I can also use most common ft parameters from other grid search best models,
+               associations = ['concreteness'], # so, units = 25, dropout = 0.50, activation = sigmoid, n_layers = 1, lr = 0.001
+               x_col = FEATURE, # basically same stuff for BERT, but then also have to choose a layer (best performing overall = )
+               y_col = TARGET, 
+               group_col = GROUP, 
+               emb_model = FT_MODELS) 
 
 
-    brysbaert_ft = get_fasttext_embeddings(brysbaert_df['word'], models = ['0', '2-5'])
-    brysbaert_ft_df = df_maker({'real_word' : brysbaert_ft}, 'brysbaert_2014_concreteness', 'ft')
+# BERT
+# merge the word norms data and the word embeddings into a single dataframe
+merged_con_bert_df = pd.merge(brysbaert_bert_df[brysbaert_bert_df['model'].isin(BERT_LAYERS)], 
+                              brysbaert_scores_df, 
+                              on=['name'], 
+                              how='inner').reindex(
+                              columns = ['name', 'word_type', 'association', 'mean_rating', 'embedding_type', 'model', 'embedding'])
+merged_con_bert_df['association'] = 'concreteness'
 
-    brysbaert_bert = get_bert_embeddings(brysbaert_df['word'])
-    brysbaert_bert_df = df_maker({'real_word' : brysbaert_bert}, 'brysbaert_2014_concreteness', 'bert')
+# perform the grid search
+grids_searcher(df = merged_con_bert_df.dropna(),
+               associations = ['concreteness'], 
+               x_col = FEATURE, 
+               y_col = TARGET, 
+               group_col = GROUP, 
+               emb_model = BERT_LAYERS)
 
 
-    # I just realized that for the senses, there's no such thing as the 'antonym' or 'opposite' of a sense. So I can't use this data for the correlation analysis
-    speed_ft = get_fasttext_embeddings(speed_df['word'], models = ['0', '2-5'])
-    speed_ft_df = df_maker({'real_word' : speed_ft}, 'speed_2021_senses', 'ft')
+# Gender
+# load the word norms data and rename columns
+vankrunkelsven_scores_df = pyreadr.read_r('./processed_data/vankrunkelsven_2022.rds')[None]
+vankrunkelsven_scores_df = vankrunkelsven_scores_df.rename(columns = {'word' : 'name',
+                                                                      'gender_vankrunkelsven' : 'mean_rating'})
 
-    speed_bert = get_bert_embeddings(speed_df['word'])
-    speed_bert_df = df_maker({'real_word' : speed_bert}, 'speed_2021_senses', 'bert')
+# fastText
+# merge the word norms data and the word embeddings into a single dataframe
+merged_fem_ft_df = pd.merge(vankrunkelsven_ft_df[vankrunkelsven_ft_df['model'].isin(FT_MODELS)], 
+                            vankrunkelsven_scores_df, 
+                            on=['name'], 
+                            how='inner').reindex(
+                            columns = ['name', 'word_type', 'association', 'mean_rating', 'embedding_type', 'model', 'embedding'])
+merged_fem_ft_df['association'] = 'gender'
 
+# perform the grid search
+grids_searcher(df = merged_fem_ft_df.dropna(),
+               associations = ['gender'], 
+               x_col = FEATURE, 
+               y_col = TARGET, 
+               group_col = GROUP, 
+               emb_model = FT_MODELS)
 
-    vankrunkelsven_ft = get_fasttext_embeddings(vankrunkelsven_df['word'], models = ['0', '2-5'])
-    vankrunkelsven_ft_df = df_maker({'real_word' : vankrunkelsven_ft}, 'vankrunkelsven_2022_gender', 'ft')
+# BERT
+# merge the word norms data and the word embeddings into a single dataframe
+merged_fem_bert_df = pd.merge(vankrunkelsven_bert_df[vankrunkelsven_bert_df['model'].isin(BERT_LAYERS)], 
+                              vankrunkelsven_scores_df, 
+                              on=['name'], 
+                              how='inner').reindex(
+                              columns = ['name', 'word_type', 'association', 'mean_rating', 'embedding_type', 'model', 'embedding'])
+merged_fem_bert_df['association'] = 'gender'
 
-    vankrunkelsven_bert = get_bert_embeddings(vankrunkelsven_df['word'])
-    vankrunkelsven_bert_df = df_maker({'real_word' : vankrunkelsven_bert}, 'vankrunkelsven_2022_gender', 'bert')
-
+# perform the grid search
+grids_searcher(df = merged_fem_bert_df.dropna(),
+               associations = ['gender'], 
+               x_col = FEATURE, 
+               y_col = TARGET, 
+               group_col = GROUP, 
+               emb_model = BERT_LAYERS)
 

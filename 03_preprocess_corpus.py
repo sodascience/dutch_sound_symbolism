@@ -1,3 +1,10 @@
+'''
+This script is used to extract text from the raw SoNaR-500 and CGNL data files using sonar500_exctractor() and cgnl_extractor().
+Then, these corpora are combined with the 2018 CommonCrawl Dutch snapshot, after which the data is cleaned and stored as one
+final corpus file. Cleaning steps taken include: remove non-alphabetic characters, split into sentences and store these on 
+different lines, and lowercast all words.
+'''
+
 from src.preprocessing.sonar500 import sonar500_extractor
 from src.preprocessing.combine import corpora_combiner
 from src.preprocessing.test import pipeline_tester
@@ -11,7 +18,7 @@ sonar500_extractor()
 # RUN TO EXTRACT RELEVANT CGNL FILES FROM TARFILE AND DO SOME MINOR CGNL-SPECIFIC CLEANING
 cgnl_extractor()
 
-# RUN TO COMBINR ALL TRHEE CORPORA TOGETHER (number of lines = 261,376,546)
+# RUN TO COMBINE ALL TRHEE CORPORA TOGETHER (number of lines = 261,376,546)
 corpora_combiner()
 
 # RUN TO CREATE SMALL TEST CORPUS TO CHECK WHETHER MY PREPROCESSING PIPELINE WORKS WELL

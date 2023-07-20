@@ -1,12 +1,15 @@
+'''
+This script can be used to train fasttext models using the cleaned corpus file. The four options chosen in this file
+include a purely lexical model (i.e., word2vec, no sub-word information is used), a bi-gram model (which only trains 
+lexical embeddings and embeddings for bigrams), a bi- and tri-gram model, and a model that trains lexical embeddings 
+as well as embeddings for 2-grams, 3-grams, 4-grams, and 5-grams. Models are saved as .bin files in the form of 
+'[corpus name]_d[dimensionality]_w[window size]_m[minimum n-gram size]_M[maximum n-gram size].bin'
+'''
+
 import fasttext
 import os
 
-## FIRST CREATE A CORRECT DATASET FROM THE DUTCH EMBEDDING EVAL JSON FILE
-
-# Okay this is way more implementation than I initially thought, so I'm going to do this later
-
-
-# let's first train two models (lexical and subword) with the best hyperparameters from the thesis
+# set constant variables
 corpus = './processed_data/corpus/corpus_final.txt'
 dim_best = 300
 ws_best = 5
@@ -16,6 +19,7 @@ min_n_lexical = 0
 max_n_lexical = 0
 out_path = './processed_data/dsm/'
 
+# train and save lexical model
 model_lexical = fasttext.train_unsupervised(input = corpus,
                                             model = "skipgram",
                                             dim = dim_best,
@@ -33,7 +37,7 @@ model_lexical.save_model(os.path.join(
                         os.path.splitext(corpus)[0].split('/')[1], dim_best, ws_best, min_n_lexical, max_n_lexical)))
 del model_lexical
 
-
+# train and save 2-3-gram model
 model_subword = fasttext.train_unsupervised(input = corpus,
                                             model = "skipgram",
                                             dim = dim_best,
@@ -51,7 +55,7 @@ model_subword.save_model(os.path.join(
                         os.path.splitext(corpus)[0].split('/')[1], dim_best, ws_best, min_n_best, max_n_best)))
 del model_subword
 
-
+# train and save 2-5-gram model
 model_big = fasttext.train_unsupervised(input = corpus,
                                             model = "skipgram",
                                             dim = dim_best,
@@ -70,6 +74,7 @@ model_big.save_model(os.path.join(
 del model_big
 
 
+# train and save bi-gram model
 model_bigram = fasttext.train_unsupervised(input = corpus,
                                             model = "skipgram",
                                             dim = dim_best,

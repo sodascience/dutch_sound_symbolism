@@ -1,3 +1,8 @@
+# This script can be used to open, pre-process, and save the open access data 
+# files that contain word norm scores collected by other researchers. 
+# Pre-processing steps taken include selecting only the columns that contain 
+# the name and its associated score, and changing the column names.
+
 library(tidyverse)
 library(readxl)
 

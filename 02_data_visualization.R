@@ -1,3 +1,6 @@
+# This script can be used to visualize the distributions of the open access data 
+# that were pre-processed in the previous script.
+
 library('tidyverse')
 
 brysbaert_2014 <- read_rds('processed_data/brysbaert_2014.rds')
