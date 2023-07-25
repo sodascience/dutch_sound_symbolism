@@ -5,10 +5,25 @@ import re
 import os
 
 def _mp_clean_text(args):
+    '''
+    :return:    list, cleaned text from the clean_text() function
+
+    This function is a necessary step for the multi-processing to work.
+    '''
 
     return clean_text(args)
 
 def clean_text(in_path):
+    '''
+    :param in_path: str, path to the input file with text to be cleaned
+
+    :return:        list, cleaned text
+
+    This function opens the input file, and splits it into sentences, removes all 
+    non-alphabetic characters, lowercases all text, and then appends it to a list
+    of clean sentences.
+    '''
+
     nlp = spacy.load('nl_core_news_md')
     nlp.max_length = 10000000000
 
@@ -42,6 +57,16 @@ def clean_text(in_path):
     return sentence_list
 
 def make(corpus_dir, out_path, threads=32):
+    '''
+    :param corpus_dir:  str, path to the folder with the corpus .txt files to be cleaned
+    :param out_path:    str, path to save the cleaned corpus to
+    :param threads:     int, number of threads to use in multi-processing
+
+    :return:            none
+
+    This function performs multi-processing to open and clean multiple of the corpus .txt files
+    at the same time. All cleaned text is automatically saved in the out_path .txt file.
+    '''
 
     files = [os.path.join(corpus_dir, f) for f in os.listdir(corpus_dir) if os.path.isfile(os.path.join(corpus_dir, f))]
 

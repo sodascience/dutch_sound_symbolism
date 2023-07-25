@@ -3,6 +3,15 @@ import pandas as pd
 import fasttext
 
 def get_bert_embeddings(words):
+    '''
+    :param words:   list, words/names to get embeddings for
+
+    :return:        dict, dict of dicts containing the embeddings with structure [word][layer][embedding]
+
+    When called, this function opens RobBERT v2 and gets the 'contextless' embeddings (i.e., only a space 
+    before and after the target word) for the words in the input list. Then, a dict of dicts is returned.
+    '''
+
     if type(words) != list:
         words = words.tolist()
         
@@ -30,6 +39,17 @@ def get_bert_embeddings(words):
     return embs_dict
 
 def get_fasttext_embeddings(words, models = False):
+    '''
+    :param words:   list, words/names to get embeddings for
+    :paramm models: list or bool, either a list of fasttext models to generate embeddings for. If False, 
+                    then all trained models are considered.
+
+    :return:        dict, dict of dicts containing the embeddings with structure [word][model][embedding]
+
+    When called, this function opens the fasttext models to get the embeddings for the words in the input 
+    list. Then, a dict of dicts is returned.
+    '''
+
     if models == False:
         models_list = ['0', '2', '2-3', '2-5']
     else:
@@ -49,6 +69,16 @@ def get_fasttext_embeddings(words, models = False):
     return embs_dict
 
 def df_maker(embs_dict, data_name, embedding_type):
+    '''
+    :param embs_dict:       dict, the dict of dicts with structure [word_type][word][model/layer][embedding]
+    :param data_name:       str, name of the data to be used when saving the dataframe as a pickle
+    :param embedding_type:  str, either 'ft' or 'bert' to indicate whether the df contains fasttext or bert embeddings
+
+    :return:                Pandas dataframe, has the columns name, word_type, embedding_type, model, and embedding. 
+                            The dict of dicts are turned into dataframes for easier use in subsequent analyses. The
+                            function also automatically saves the dataframe as a .pickle file.
+    '''
+
     df = pd.DataFrame()
 
     for word_type in embs_dict.keys():

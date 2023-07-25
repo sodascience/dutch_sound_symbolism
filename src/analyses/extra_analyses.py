@@ -3,6 +3,13 @@ import pickle
 import pyreadr
 
 def generate_concreteness_seed_embeddings():
+    '''
+    :return:            none
+
+    This function contains lists of seed words for the left and right side of the semantic poles for our extra analyses. 
+    Calling this function automatically generates embeddings for these words and saves them as a .pickle file.
+    '''
+
     concrete_seed_words = ['concreet', 'concrete', 'concreter', 'concreetheid', 'tastbaar', 'tastbare', 'tastbaarheid', 'duidelijk', 'duidelijke', 
                        'duidelijkheid', 'expliciet', 'expliciete', 'explicietheid', 'materieel', 'materiële', 'grijpbaar', 'grijpbare', 'grijpbaarheid']
     abstract_seed_words = ['abstract', 'abstracte', 'abstracter', 'abstractheid', 'ontastbaar', 'ontastbare', 'ontastbaarheid', 'onduidelijk', 'onduidelijke', 
@@ -23,6 +30,15 @@ def generate_concreteness_seed_embeddings():
 
 
 def load_prepared_concreteness_seed_embeddings_dict(model):
+    '''
+    :param model:   str or int, must be equal to 'ft' for fasttext embeddings or 'bert' for bert embeddings
+    
+    :return:        dicts, returns the seed words for the left and right pole of the concreteness association
+
+    Calling this function opens the .pickle files that contain the word embeddings for the seed words and returns 
+    them as a dict of dicts.
+    '''
+
     embs_path = './processed_data/embeddings/'
     if model == 'ft':
         with open(embs_path + 'concrete-words_ft_embs.bin', 'rb') as f:
@@ -40,6 +56,13 @@ def load_prepared_concreteness_seed_embeddings_dict(model):
         raise Exception("emb_type should be equal to 'ft' for fastText embeddings, or 'bert' for BERT embeddings.")
 
 def create_external_data_dfs():
+    '''
+    :return:    none
+
+    This function opens the .rds files of the processed data for the brysbaert, speed, and vankrunkelsven datasets.
+    Then, fasttext and bert embeddings are generated, of which dataframes are created and saved as .csv files.    
+    '''
+
     brysbaert_df = pyreadr.read_r('./processed_data/brysbaert_2014.rds')[None]
     speed_df = pyreadr.read_r('./processed_data/speed_2021.rds')[None]
     vankrunkelsven_df = pyreadr.read_r('./processed_data/vankrunkelsven_2022.rds')[None]

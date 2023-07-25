@@ -5,6 +5,16 @@ import re
 import os
 
 def cgnl_extractor():
+    '''
+    :return:    none
+
+    When called, this function opens the raw CGNL corpus, opens the ort.gz files 
+    (i.e., the files that contain the raw text), removes lines that contain numbers
+    or CGNL-specific annotations. The function then opens a .txt file and saves the 
+    extracted text. Then, after all text is extracted, this function combines all .txt 
+    files to create one complete CGNL corpus .txt file.
+    '''
+
     ## CORPUS GESPROKEN NEDERLANDS (968,329 lines)
 
     # EXTRACT ALL TEXTFILES, DO SOME CGN-SPECIFIC CLEANING

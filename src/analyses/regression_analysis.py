@@ -16,26 +16,48 @@ from tensorflow.keras.initializers import RandomNormal
 
 
 def regression_analysis(df, hyperparameter_df, x_col, y_col, items_col, group_col, ft=False):
+    '''
+    :param df:                  Pandas df
+    :param hyperparameter_df:   Pandas df, contains the optimal hyperparameters for the NNs as determined by the grid search
+    :param x_col:               str, matching the df column storing feature vectors
+    :param y_col:               str, matching the df column storing values to be predicted
+    :param items_col:           str, matching the header of the column containing the items labels
+    :param group_col:           str, matching the df column storing the variable over which to match the folds
+    :param ft:                  bool, indicating whether fastText (True) or BERT (False) hyperparameters should 
+                                be acquired from the hyperparameter_df
+    
+    :return:                    None
+
+    This function performs the regression analysis given the optimal hyperparameters as found with the grid search and 
+    automatically saves the predictions as a .csv file.
+    '''
+    
     emb_type = pd.unique(hyperparameter_df['emb_type'])[0]
 
     for association in pd.unique(df['association']).tolist():
         for emb_model in pd.unique(hyperparameter_df[hyperparameter_df['association'] == association]['emb_model']).tolist():
+            # for each unique association and embedding model, acquire the correct subset from the full df
             print('#####association: {}; emb_model: {};'.format(association, emb_model))
             df_subset = df.loc[(df['model'] == emb_model) & (df['association'] == association)].reset_index(drop=True)
 
             if ft == True:
+                # if ft == True, get the hyperparameters from the ft_lexical model
                 hyperparameters = hyperparameter_df.loc[(hyperparameter_df['association'] == association) & (hyperparameter_df['emb_model'] == 0)]
             else:
+                # else, get the hyperparameters from the BERT layer
                 hyperparameters = hyperparameter_df.loc[(hyperparameter_df['association'] == association) & (hyperparameter_df['emb_model'] == emb_model)]
 
+            # get the correct hyperparameters to be fed to the predict() function
             units = pd.unique(hyperparameters['nodes']).tolist()[0]
             dropout = pd.unique(hyperparameters['dropout']).tolist()[0]
             act = pd.unique(hyperparameters['act']).tolist()[0]
             n_layers = pd.unique(hyperparameters['n_layers']).tolist()[0]
             lr = pd.unique(hyperparameters['lr']).tolist()[0]
 
+            # acquire the predictions
             prediction_df = predict(df_subset, x_col, y_col, items_col, group_col, units, dropout, act, n_layers, lr)
 
+            # save the predictions
             prediction_df.to_csv('./processed_data/analyses/regression_analysis/{}_{}{}_predictions.csv'.format(association, emb_type, emb_model), )
 
     return None
@@ -217,15 +239,31 @@ def predict(df, x_col, y_col, items_col, group_col, units, dropout_rate, act, n_
     return pd.DataFrame(predictions)
 
 def grids_searcher(df, associations, x_col, y_col, group_col, emb_model = None, fnames_lex = False):
-    emb_type = pd.unique(df['embedding_type'])[0]
+    '''
+    :param df:                  Pandas df
+    :param associations:        list, list of associations to include in grid search
+    :param x_col:               str, matching the df column storing feature vectors
+    :param y_col:               str, matching the df column storing values to be predicted
+    :param group_col:           str, matching the df column storing the variable over which to match the folds
+    :param emb_model:           list, list of ft models / bert layers to include in grid search
+    :param fnames_lex:          bool, indicating whether the analysis was done using only first names with the 
+                                lexical model (necessary analysis for specific theoretical purposes)
+    
+    :return:                    None
 
-    input_dim = len(df[x_col][0])
+    This function performs a grid search for the optimal NN hyperparameters for each unique association-emb_model 
+    combination. Returns the list of hyperparameters tested and its associated outcome scores as a .csv file.
+    '''
+    
+    emb_type = pd.unique(df['embedding_type'])[0]
 
     for association in associations:
         for embmodel in emb_model:
+            # for each association-embedding model combination, fetch the corresponding subset from the full df
             print('#####association: {}; emb_model: {};'.format(association, embmodel))
             df_subset = df.loc[(df['model'] == embmodel) & (df['association'] == association)].reset_index(drop=True)
             
+            # call the grid_search() function to perform a grid search for this slice of the data
             search_df  = grid_search(df=df_subset,
                                     x_col=x_col,
                                     y_col=y_col,
@@ -235,15 +273,25 @@ def grids_searcher(df, associations, x_col, y_col, group_col, emb_model = None, 
                                     activations=['sigmoid', 'relu'], #['tanh', 'sigmoid', 'relu'],
                                     n_layers=[1], #[1, 2, 3],
                                     learning_rates=[0.001, 0.0001])
+            
+            # save the output as a .csv
             if fnames_lex == False:
                 search_df.to_csv('./processed_data/analyses/grid_search/{}_{}{}_grid-search.csv'.format(association, emb_type, embmodel), index = False, index_label = False)
             else:
                 search_df.to_csv('./processed_data/analyses/grid_search/{}_{}{}_grid-search_first-names-lexical_True.csv'.format(association, emb_type, embmodel), index = False, index_label = False)
 
 def open_processed_wordscores_rds():
+    '''
+    :return:    Pandas df, dataframe with the mean rating, association, and word type per name gathered with our survey
+    
+    This function opens the word_scores.rds file, changes the Dutch words to English, changes the direction of the 
+    'slecht' ratings to align with our analysis of 'good', and lowercases all names/words. 
+    '''
+    
     df_r = pyreadr.read_r('./processed_data/survey_ratings/word_scores.rds')
     word_scores = df_r[None]
 
+    # create a mapping of words to change
     word_map = {'vrouwelijk': 'feminine',
                 'slecht': 'good',
                 'slim': 'smart',
@@ -252,11 +300,15 @@ def open_processed_wordscores_rds():
                 'namen': 'fnames',
                 'nepwoorden': 'nonword'}
     
+    # change direction of the 'slecht' ratings
     word_scores.loc[word_scores['association'] == 'slecht', 'mean'] = -word_scores.loc[word_scores['association'] == 'slecht', 'mean']
+    # lowercase all words
     word_scores['word'] = word_scores['word'].str.lower()
+    # change all dutch words to english to be compatible with our analyses
     word_scores[['association', 'wordtype']] = word_scores[['association', 'wordtype']].apply(lambda x: x.str.replace('|'.join(word_map.keys()), lambda y: word_map[y.group()], regex=True))
 
+    # rename columns
     word_scores = word_scores.rename(columns={'word':'name', 'mean':'mean_rating', 'wordtype':'word_type'})
 
-
+    # return the df with a reordering of the columns
     return word_scores[['mean_rating', 'name', 'association', 'word_type']]

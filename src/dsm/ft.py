@@ -4,7 +4,7 @@ import fasttext
 import numpy as np
 from src.dsm.dutch_embedding_eval import corr
 
-7
+
 def grid(corpus, eval_words, out_path, dimensionalities, window_sizes, min_values, max_values):
 
     """
@@ -67,6 +67,7 @@ def embed_string(s, model, min=0, max=0, lexical=True, loo=False):
                     a dictionary mapping each n-gram that satisfies the conditions to the embedding obtained by not
                     considering that ngram. It makes most sense to set loo to True when setting max to a number higher
                     than 0 and lexical to False.
+    
     :return:        the embedding of the input word in the input model derived only from n-grams of the desired size. If
                     loo = True, returns a dictionary mapping strings (the character ngrams) to embeddings (obtained
                     by excluding the embedding of the key ngram).
@@ -142,6 +143,7 @@ def get_avg_emb(model, min=0, max=0, lexical=True):
     :param max:     the largest n-gram size we want to contribute to the final embedding. Default to 0 means only the
                     full lexical form is used
     :param lexical: bool, indicates if the embedding of the full lexical form should be included
+    
     :return:        the average embedding given the entire model vocabulary and target ngrams
     """
 

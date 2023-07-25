@@ -2,6 +2,13 @@ from src.preprocessing.corpus import make
 from filesplit.split import Split
 
 def pipeline_tester():
+    '''
+    :return:    none
+
+    When called, this function tests on a small portion of the full corpus whether the
+    corpus pre-processing and cleaning pipeline works and produces the intended results.
+    '''
+
     with open('./raw_data/corpora/extracted/complete_combined/corpora_complete_combined.txt','r') as corpus_raw:
         with open('./raw_data/corpora/extracted/complete_combined/test_corpus.txt','a') as corpus_test:
             for i in range(1000):

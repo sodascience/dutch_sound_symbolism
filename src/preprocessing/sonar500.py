@@ -4,6 +4,15 @@ import shutil
 import os
 
 def sonar500_extractor():
+    '''
+    :return:    none
+
+    When called, this function opens the raw SoNaR-500 corpus, opens the folia.xml files 
+    (i.e., the files that contain the raw text), then opens a .txt file and saves the 
+    extracted text. Then, after all text is extracted, this function combines all .txt 
+    files to create one complete SoNaR corpus .txt file.
+    '''
+
     ## SONAR-500 CORPUS (30,494,087 lines)
 
     # OPEN AND BROWSE TAR FILE
