@@ -8,18 +8,26 @@ This research uses fastText and BERT to find systematic relationships between (s
 rated associations with names and words. Significant relationships based on sub-lexical patterns show that the form 
 and meaning of a word are linked, and thus that meaning is signaled by how a word is spelled/sounds. 
 
+This repository contains the code to train [fastText](https://fasttext.cc/) models and to compare the resulting models to human-rated associations. The BERT model used in this research was pretrained and can be found [here](https://huggingface.co/pdelobelle/robbert-v2-dutch-base). The ratings were obtained using a PsychoPy experiment which can be found [here](https://github.com/sodascience/word_norms_survey), and the association scores from this experiment are extracted using the code in [this repository](https://github.com/sodascience/bestworst_analysis).
+
 <!-- Analyses -->
 ## Analyses
-In our repository, two methods to find relationships between embeddings and association ratings are used. 
+In this repository, two methods to quantify the relationship between language model embeddings and human association ratings are used. 
 
-The first method is unsupervised, using a list of seed words at two different ends of a semantic pole to which the cosine 
-distance of the embedding of the target word is calculated. The target word's average proximity to both sides of the
-semantic poles is used to create a delta score, the target word's place on the semantic scale. These delta scores 
-are subsequently correlated with the association ratings.
+### Correlations
+The first method is based on correlations and distance in the embedding space: first, a distance score is computed for each (non)word (e.g., "Annemarije") with a particular association (e.g., femininity). Then, the distance scores are correlated with our collected human association ratings for the same words. This is done for each association and language model separately.
 
-The second method is supervised, where we train neural networks with a single linear activation node at the end that
-predicts the association rating. Before making predictions, we run a grid search that tunes several hyperparameters of 
-the neural networks.
+This distance score is computed as follows: 
+1. compute `similarity_left`: the average cosine similarity of the embedding of the target word with the embeddings of seed words related to one side of the semantic scale (e.g., female, feminine, grandma, aunt)
+2. compute `similarity_right`: the average cosine similarity of the embedding of the target word with the embeddings of seed words related to the other side of the semantic scale (e.g., male, masculine, grandpa, uncle)
+3. compute the `delta_score` as `similarity_right` - `similarity_left` 
+
+For the fastText models, you can see the results [here](./results/analyses/correlation_analysis/correlations_ft0_&_2-5_bootstrap=False.csv). 
+
+### Neural network regressions
+In the second method, the raw embeddings for each word are entered as predictors in a neural network model with the human association rating as the target / outcome variable. Separate models are made for each association ("feminine", "good", "smart", "trustworthy") and language model. Hyperparameters (number of layers, number of hidden nodes per layer, learning rate, dropout rate, activation function) are tuned using grid search and 10-fold cross-validation.
+
+For non-words, the better these predictions, the more evidence there is that the embeddings (and thus the word form) contains information about how these words relate to the associations investigated.
 
 <!-- USAGE -->
 ## Usage
@@ -46,6 +54,6 @@ To reproduce our analyses, the scripts in this repository should be run in order
 ## Contact
 This is a project by the [ODISSEI Social Data Science (SoDa)](https://odissei-data.nl/nl/soda/) team.
 Do you have questions, suggestions, or remarks on the technical implementation? File an issue in the
-issue tracker or feel free to contact [Erik-Jan van Kesteren](https://github.com/vankesteren).
+issue tracker or feel free to contact [Aron Joosse](https://github.com/aron2vec), [Erik-Jan van Kesteren](https://github.com/vankesteren), or [Giovanni Cassani](https://github.com/GiovanniCassani).
 
 <img src="docs/soda.png" alt="SoDa logo" width="250px"/> 
