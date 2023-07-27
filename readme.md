@@ -1,4 +1,5 @@
-# Analysis of Sound Symbolic Associations with Dutch Names and Nonwords using Distributional Semantic Models
+# Do Dutch Nonwords Convey Meaning?
+## Analysis of Sound Symbolic Associations with Dutch Names and Nonwords using Distributional Semantic Models
 
 Repository containing code and data used to compare word similarity from embeddings to human-rated word associations.
 
